@@ -56,6 +56,13 @@ async function fetchData() {
       const b64 = data.content.replace(/\s/g, "");
       data = JSON.parse(Data.fromBase64String(b64).toRawString());
     }
+    // GitHub returns an error object like {"message":"Bad credentials"}
+    // with HTTP 401/404, and loadString does NOT throw for it. If the
+    // shape is not usage data, treat it as a fetch failure so the
+    // widget falls back to cache instead of crashing on data.weekly.
+    if (!data || !data.weekly || !data.additional || typeof data.weekly.remaining_pct !== "number") {
+      throw new Error("usage data shape invalid: " + JSON.stringify(data).slice(0, 120));
+    }
     data._stale = false;
     fm.writeString(cachePath, JSON.stringify(data));
     return data;
@@ -107,7 +114,7 @@ async function main() {
   dot.textColor = data ? (data._stale ? new Color("#FFCC00") : new Color("#34C759")) : new Color("#FF3B30");
   w.addSpacer(8);
 
-  if (!data) {
+  if (!data || !data.weekly || !data.additional) {
     const e = w.addText("取不到数据，也没有缓存\n请检查网络和只读令牌");
     e.font = Font.systemFont(13);
     e.textColor = new Color("#FF3B30");
