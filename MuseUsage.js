@@ -9,7 +9,10 @@
 
 const READONLY_TOKEN = "PASTE_READONLY_TOKEN_HERE";
 const REPO = "linuxdowill-hub/muse-usage-widget";
-const DATA_URL = `https://raw.githubusercontent.com/${REPO}/main/muse-usage.json`;
+// Do NOT use raw.githubusercontent.com for a private repo with a
+// fine-grained PAT: GitHub returns 404 there. Use the REST API
+// contents endpoint with Accept: application/vnd.github.raw instead.
+const DATA_URL = `https://api.github.com/repos/${REPO}/contents/muse-usage.json`;
 const CACHE_NAME = "muse-usage-cache.json";
 
 function colorFor(remaining) {
@@ -37,9 +40,22 @@ async function fetchData() {
   const cachePath = fm.joinPath(fm.documentsDirectory(), CACHE_NAME);
   try {
     const req = new Request(DATA_URL);
-    req.headers = { "Authorization": `Bearer ${READONLY_TOKEN}`, "Accept": "application/vnd.github.raw" };
+    req.headers = { "Authorization": `Bearer ${READONLY_TOKEN}`, "Accept": "application/vnd.github.raw", "X-GitHub-Api-Version": "2022-11-28" };
     req.timeoutInterval = 15;
-    const data = await req.loadJSON();
+    // With Accept: application/vnd.github.raw the API returns the raw
+    // JSON text, so load it as a string first. If GitHub ever returns the
+    // JSON wrapper instead, unwrap its base64 content field.
+    const text = await req.loadString();
+    let data;
+    try {
+      data = JSON.parse(text);
+    } catch (e) {
+      throw new Error("usage JSON parse failed");
+    }
+    if (data && data.content) {
+      const b64 = data.content.replace(/\s/g, "");
+      data = JSON.parse(Data.fromBase64String(b64).toRawString());
+    }
     data._stale = false;
     fm.writeString(cachePath, JSON.stringify(data));
     return data;
