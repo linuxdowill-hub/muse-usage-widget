@@ -10,6 +10,18 @@
 const DATA_URL = "https://raw.githubusercontent.com/linuxdowill-hub/muse-usage-widget/main/muse-usage.json";
 const CACHE_NAME = "muse-usage-cache.json";
 
+// Apple style: follow iOS light / dark mode like a native widget.
+// Background and text use Color.dynamic (light first, dark second),
+// so the widget is white in light mode and black in dark mode.
+// The progress-bar image is drawn by hand, so its track color is picked
+// with Device.isUsingDarkAppearance() instead.
+const IS_DARK = Device.isUsingDarkAppearance();
+const BG_COLOR = Color.dynamic(new Color("#FFFFFF"), new Color("#000000"));
+const TEXT_COLOR = Color.dynamic(new Color("#000000"), new Color("#FFFFFF"));
+const LABEL_COLOR = Color.dynamic(new Color("#1C1C1E"), new Color("#E5E5EA"));
+const SECONDARY_COLOR = new Color("#8E8E93");
+const TRACK_COLOR = IS_DARK ? new Color("#2C2C2E") : new Color("#E5E5EA");
+
 let lastError = "";
 
 function colorFor(remaining) {
@@ -35,7 +47,7 @@ function drawBar(pct, color, width, height) {
   const ctx = new DrawContext();
   ctx.size = new Size(width, height);
   ctx.opaque = false;
-  drawRounded(ctx, 0, 0, width, height, new Color("#2C2C2E"));
+  drawRounded(ctx, 0, 0, width, height, TRACK_COLOR);
   const w = Math.round(width * Math.min(100, Math.max(0, pct)) / 100);
   if (w > 0) drawRounded(ctx, 0, 0, Math.max(height, w), height, color);
   return ctx.getImage();
@@ -78,7 +90,7 @@ function addBarRow(w, label, remaining, note) {
   row.centerAlignContent();
   const t = row.addText(label);
   t.font = Font.mediumSystemFont(14);
-  t.textColor = new Color("#E5E5EA");
+  t.textColor = LABEL_COLOR;
   row.addSpacer();
   const v = row.addText(remaining == null ? "--" : `${remaining}%`);
   v.font = Font.boldSystemFont(20);
@@ -89,13 +101,13 @@ function addBarRow(w, label, remaining, note) {
   w.addSpacer(5);
   const n = w.addText(note || "");
   n.font = Font.systemFont(12);
-  n.textColor = new Color("#8E8E93");
+  n.textColor = SECONDARY_COLOR;
 }
 
 async function main() {
   const data = await fetchData();
   const w = new ListWidget();
-  w.backgroundColor = new Color("#000000");
+  w.backgroundColor = BG_COLOR;
   w.setPadding(16, 16, 14, 16);
 
   const head = w.addStack();
@@ -103,7 +115,7 @@ async function main() {
   head.centerAlignContent();
   const title = head.addText("Muse 用量");
   title.font = Font.boldSystemFont(18);
-  title.textColor = Color.white();
+  title.textColor = TEXT_COLOR;
   head.addSpacer();
   const dot = head.addText(data ? (data._stale ? "缓存" : "●") : "离线");
   dot.font = Font.systemFont(11);
@@ -118,7 +130,7 @@ async function main() {
       w.addSpacer(6);
       const d = w.addText(lastError);
       d.font = Font.systemFont(11);
-      d.textColor = new Color("#AEAEB2");
+      d.textColor = SECONDARY_COLOR;
     }
     if (config.runsInWidget) { Script.setWidget(w); } else { w.presentMedium(); }
     Script.complete();
@@ -138,11 +150,11 @@ async function main() {
   foot.layoutHorizontally();
   const reset = foot.addText(data.weekly.reset_text ? `重置 ${data.weekly.reset_text}` : "");
   reset.font = Font.systemFont(12);
-  reset.textColor = new Color("#8E8E93");
+  reset.textColor = SECONDARY_COLOR;
   foot.addSpacer();
   const upd = foot.addText(data.updated_at ? `更新 ${data.updated_at.slice(5, 16).replace("T", " ")}` : "");
   upd.font = Font.systemFont(12);
-  upd.textColor = new Color("#8E8E93");
+  upd.textColor = SECONDARY_COLOR;
 
   if (config.runsInWidget) {
     Script.setWidget(w);
