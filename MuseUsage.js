@@ -35,6 +35,8 @@ function drawBar(pct, color, width, height) {
   return ctx.getImage();
 }
 
+let lastError = "";
+
 async function fetchData() {
   const fm = FileManager.local();
   const cachePath = fm.joinPath(fm.documentsDirectory(), CACHE_NAME);
@@ -61,16 +63,27 @@ async function fetchData() {
     // shape is not usage data, treat it as a fetch failure so the
     // widget falls back to cache instead of crashing on data.weekly.
     if (!data || !data.weekly || !data.additional || typeof data.weekly.remaining_pct !== "number") {
-      throw new Error("usage data shape invalid: " + JSON.stringify(data).slice(0, 120));
+      throw new Error("GitHub 回了: " + JSON.stringify(data).slice(0, 120));
     }
     data._stale = false;
     fm.writeString(cachePath, JSON.stringify(data));
     return data;
   } catch (e) {
+    lastError = String(e.message || e).slice(0, 140);
     if (fm.fileExists(cachePath)) {
-      const data = JSON.parse(fm.readString(cachePath));
-      data._stale = true;
-      return data;
+      try {
+        const data = JSON.parse(fm.readString(cachePath));
+        // Old versions cached GitHub error objects like
+        // {"message":"Bad credentials"}. Those are not usage data:
+        // delete them instead of showing a stale "缓存" label.
+        if (data && data.weekly && data.additional) {
+          data._stale = true;
+          return data;
+        }
+        fm.remove(cachePath);
+      } catch (_ignored) {
+        try { fm.remove(cachePath); } catch (_ignored2) {}
+      }
     }
     return null;
   }
@@ -118,6 +131,12 @@ async function main() {
     const e = w.addText("取不到数据，也没有缓存\n请检查网络和只读令牌");
     e.font = Font.systemFont(13);
     e.textColor = new Color("#FF3B30");
+    if (lastError) {
+      w.addSpacer(6);
+      const d = w.addText(lastError);
+      d.font = Font.systemFont(11);
+      d.textColor = new Color("#AEAEB2");
+    }
     if (config.runsInWidget) { Script.setWidget(w); } else { w.presentMedium(); }
     Script.complete();
     return;
