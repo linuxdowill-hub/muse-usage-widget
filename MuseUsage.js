@@ -1,19 +1,16 @@
 // MuseUsage.js — iPhone Scriptable widget for Muse usage
 // 1. Install Scriptable (free, App Store)
 // 2. Paste this file as a new script named "MuseUsage"
-// 3. Fill in READONLY_TOKEN below (see README.md — fine-grained PAT,
-//    Contents: Read-only, ONLY for linuxdowill-hub/muse-usage-widget)
-// 4. Long-press home screen -> + -> Scriptable -> pick this script
+// 3. Long-press home screen -> + -> Scriptable -> pick this script
 //
-// The full-access PAT must NEVER go here. Only the read-only token.
+// No token needed. Usage numbers are not sensitive, so the data repo
+// linuxdowill-hub/muse-usage-widget is public and the widget fetches
+// muse-usage.json from raw.githubusercontent.com with no auth.
 
-const READONLY_TOKEN = "PASTE_READONLY_TOKEN_HERE";
-const REPO = "linuxdowill-hub/muse-usage-widget";
-// Do NOT use raw.githubusercontent.com for a private repo with a
-// fine-grained PAT: GitHub returns 404 there. Use the REST API
-// contents endpoint with Accept: application/vnd.github.raw instead.
-const DATA_URL = `https://api.github.com/repos/${REPO}/contents/muse-usage.json`;
+const DATA_URL = "https://raw.githubusercontent.com/linuxdowill-hub/muse-usage-widget/main/muse-usage.json";
 const CACHE_NAME = "muse-usage-cache.json";
+
+let lastError = "";
 
 function colorFor(remaining) {
   // remaining: 0-100. <10 red, <25 yellow, else green.
@@ -35,35 +32,15 @@ function drawBar(pct, color, width, height) {
   return ctx.getImage();
 }
 
-let lastError = "";
-
 async function fetchData() {
   const fm = FileManager.local();
   const cachePath = fm.joinPath(fm.documentsDirectory(), CACHE_NAME);
   try {
     const req = new Request(DATA_URL);
-    req.headers = { "Authorization": `Bearer ${READONLY_TOKEN}`, "Accept": "application/vnd.github.raw", "X-GitHub-Api-Version": "2022-11-28" };
     req.timeoutInterval = 15;
-    // With Accept: application/vnd.github.raw the API returns the raw
-    // JSON text, so load it as a string first. If GitHub ever returns the
-    // JSON wrapper instead, unwrap its base64 content field.
-    const text = await req.loadString();
-    let data;
-    try {
-      data = JSON.parse(text);
-    } catch (e) {
-      throw new Error("usage JSON parse failed");
-    }
-    if (data && data.content) {
-      const b64 = data.content.replace(/\s/g, "");
-      data = JSON.parse(Data.fromBase64String(b64).toRawString());
-    }
-    // GitHub returns an error object like {"message":"Bad credentials"}
-    // with HTTP 401/404, and loadString does NOT throw for it. If the
-    // shape is not usage data, treat it as a fetch failure so the
-    // widget falls back to cache instead of crashing on data.weekly.
+    const data = await req.loadJSON();
     if (!data || !data.weekly || !data.additional || typeof data.weekly.remaining_pct !== "number") {
-      throw new Error("GitHub 回了: " + JSON.stringify(data).slice(0, 120));
+      throw new Error("数据格式不对: " + JSON.stringify(data).slice(0, 120));
     }
     data._stale = false;
     fm.writeString(cachePath, JSON.stringify(data));
@@ -73,9 +50,6 @@ async function fetchData() {
     if (fm.fileExists(cachePath)) {
       try {
         const data = JSON.parse(fm.readString(cachePath));
-        // Old versions cached GitHub error objects like
-        // {"message":"Bad credentials"}. Those are not usage data:
-        // delete them instead of showing a stale "缓存" label.
         if (data && data.weekly && data.additional) {
           data._stale = true;
           return data;
@@ -128,7 +102,7 @@ async function main() {
   w.addSpacer(8);
 
   if (!data || !data.weekly || !data.additional) {
-    const e = w.addText("取不到数据，也没有缓存\n请检查网络和只读令牌");
+    const e = w.addText("取不到数据，也没有缓存\n请检查网络");
     e.font = Font.systemFont(13);
     e.textColor = new Color("#FF3B30");
     if (lastError) {
