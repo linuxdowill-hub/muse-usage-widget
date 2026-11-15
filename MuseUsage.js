@@ -20,15 +20,24 @@ function colorFor(remaining) {
   return new Color("#34C759");
 }
 
+function drawRounded(ctx, x, y, w, h, color) {
+  // Scriptable has no fillRoundedRect. The correct way is
+  // Path.addRoundedRect + DrawContext.addPath + fillPath.
+  if (w <= 0) return;
+  const p = new Path();
+  p.addRoundedRect(new Rect(x, y, w, h), h / 2, h / 2);
+  ctx.addPath(p);
+  ctx.setFillColor(color);
+  ctx.fillPath();
+}
+
 function drawBar(pct, color, width, height) {
   const ctx = new DrawContext();
   ctx.size = new Size(width, height);
   ctx.opaque = false;
-  ctx.setFillColor(new Color("#3A3A3C"));
-  ctx.fillRect(new Rect(0, 0, width, height));
-  const w = Math.max(height, Math.round(width * Math.min(100, Math.max(0, pct)) / 100));
-  ctx.setFillColor(color);
-  ctx.fillRect(new Rect(0, 0, w, height));
+  drawRounded(ctx, 0, 0, width, height, new Color("#2C2C2E"));
+  const w = Math.round(width * Math.min(100, Math.max(0, pct)) / 100);
+  if (w > 0) drawRounded(ctx, 0, 0, Math.max(height, w), height, color);
   return ctx.getImage();
 }
 
@@ -68,38 +77,38 @@ function addBarRow(w, label, remaining, note) {
   row.layoutHorizontally();
   row.centerAlignContent();
   const t = row.addText(label);
-  t.font = Font.semiboldSystemFont(13);
-  t.textColor = Color.white();
+  t.font = Font.mediumSystemFont(14);
+  t.textColor = new Color("#E5E5EA");
   row.addSpacer();
   const v = row.addText(remaining == null ? "--" : `${remaining}%`);
-  v.font = Font.boldSystemFont(15);
+  v.font = Font.boldSystemFont(20);
   v.textColor = colorFor(remaining);
-  w.addSpacer(3);
-  const barImg = w.addImage(drawBar(remaining == null ? 0 : remaining, colorFor(remaining), 300, 10));
-  barImg.imageSize = new Size(300, 10);
-  w.addSpacer(3);
+  w.addSpacer(5);
+  const barImg = w.addImage(drawBar(remaining == null ? 0 : remaining, colorFor(remaining), 300, 12));
+  barImg.imageSize = new Size(300, 12);
+  w.addSpacer(5);
   const n = w.addText(note || "");
-  n.font = Font.systemFont(11);
-  n.textColor = new Color("#AEAEB2");
+  n.font = Font.systemFont(12);
+  n.textColor = new Color("#8E8E93");
 }
 
 async function main() {
   const data = await fetchData();
   const w = new ListWidget();
-  w.backgroundColor = new Color("#1C1C1E");
-  w.setPadding(14, 14, 12, 14);
+  w.backgroundColor = new Color("#000000");
+  w.setPadding(16, 16, 14, 16);
 
   const head = w.addStack();
   head.layoutHorizontally();
   head.centerAlignContent();
   const title = head.addText("Muse 用量");
-  title.font = Font.boldSystemFont(16);
+  title.font = Font.boldSystemFont(18);
   title.textColor = Color.white();
   head.addSpacer();
   const dot = head.addText(data ? (data._stale ? "缓存" : "●") : "离线");
   dot.font = Font.systemFont(11);
   dot.textColor = data ? (data._stale ? new Color("#FFCC00") : new Color("#34C759")) : new Color("#FF3B30");
-  w.addSpacer(8);
+  w.addSpacer(10);
 
   if (!data || !data.weekly || !data.additional) {
     const e = w.addText("取不到数据，也没有缓存\n请检查网络");
@@ -120,20 +129,20 @@ async function main() {
   // weekly is often 0% while additional tokens are still usable).
   addBarRow(w, "周额度剩余", data.weekly.remaining_pct,
     data.weekly.countdown ? `重置倒计时 ${data.weekly.countdown}` : (data.weekly.reset_text || ""));
-  w.addSpacer(10);
+  w.addSpacer(14);
   addBarRow(w, "额外 Token 剩余", data.additional.remaining_pct,
     data.additional.left ? `还剩 ${data.additional.left} tokens` : "");
 
-  w.addSpacer(8);
+  w.addSpacer(12);
   const foot = w.addStack();
   foot.layoutHorizontally();
   const reset = foot.addText(data.weekly.reset_text ? `重置 ${data.weekly.reset_text}` : "");
-  reset.font = Font.systemFont(11);
-  reset.textColor = new Color("#AEAEB2");
+  reset.font = Font.systemFont(12);
+  reset.textColor = new Color("#8E8E93");
   foot.addSpacer();
   const upd = foot.addText(data.updated_at ? `更新 ${data.updated_at.slice(5, 16).replace("T", " ")}` : "");
-  upd.font = Font.systemFont(11);
-  upd.textColor = new Color("#AEAEB2");
+  upd.font = Font.systemFont(12);
+  upd.textColor = new Color("#8E8E93");
 
   if (config.runsInWidget) {
     Script.setWidget(w);
