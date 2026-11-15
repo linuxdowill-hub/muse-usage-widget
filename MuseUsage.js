@@ -25,10 +25,10 @@ function drawBar(pct, color, width, height) {
   ctx.size = new Size(width, height);
   ctx.opaque = false;
   ctx.setFillColor(new Color("#3A3A3C"));
-  ctx.fillRoundedRect(new Rect(0, 0, width, height), height / 2, height / 2);
+  ctx.fillRect(new Rect(0, 0, width, height));
   const w = Math.max(height, Math.round(width * Math.min(100, Math.max(0, pct)) / 100));
   ctx.setFillColor(color);
-  ctx.fillRoundedRect(new Rect(0, 0, w, height), height / 2, height / 2);
+  ctx.fillRect(new Rect(0, 0, w, height));
   return ctx.getImage();
 }
 
