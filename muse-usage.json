@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-11-19T22:49:02.279679+08:00",
+  "updated_at": "2026-11-20T01:49:04.947346+08:00",
   "plan": "free",
   "weekly": {
     "used_pct": 100,
@@ -7,7 +7,7 @@
     "reset_text": "Nov 21 at 9:08 AM CST",
     "reset_iso": "2026-11-21T09:08:00+08:00",
     "reset_weekday": "Saturday",
-    "countdown": "1天10小时"
+    "countdown": "1天7小时"
   },
   "additional": {
     "used_pct": 11,
